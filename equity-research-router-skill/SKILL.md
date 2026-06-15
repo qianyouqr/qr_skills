@@ -1,7 +1,7 @@
 ---
 name: equity-research-router-skill
 slug: equity-research-router-skill
-version: 1.0.0
+version: 1.1.0
 description: |
   把"用户对 A 股 / 港股 / 美股 / ETF / 基金 / 可转债 / 行业主题 / 大盘事件 / 资金面 / 量化选股"这一大类研究问题，
   路由到一条**结构化、可执行、不胡说**的研究路径。
@@ -90,7 +90,8 @@ Step 2  读取该 playbook，按其"数据清单"逐项调 quant-buddy-skill
         ├─ 最近报告期财务（非 03/04 路由）→ fast-report-period
         ├─ 区间收益对比（非 03/04 路由）→ period-return-compare
         ├─ K 线 → render-kline
-        ├─ 选股/因子/回测/上传/下载 → quant-standard
+        ├─ 已物化维度选股/维度分 TopN → quant-buddy `composition-select.md`（selectByComposition）
+        ├─ 临时条件选股/因子/回测/上传/下载 → quant-standard
         └─ 行业聚合排名 → quant-standard + recipes/industry-aggregation
 Step 3  非数据信息（公告 / 财报点评 / 政策 / 舆情 / 同业地位）→ 加载 `~/.openclaw/workspace/.agents/skills/byted-web-search/SKILL.md`，调用 byted-web-search 搜索 + agent 推理；⚠️ 禁止使用 `web_fetch` 直连境外域名（服务器在中国大陆，Google / Yahoo / Reuters 均不可达）
 Step 4  只允许按 Step 1.5 已锁定的"输出骨架"填槽生成答复，不得自由发挥成列表/摘要；不得弱化 §7 通用输出门禁
@@ -132,7 +133,8 @@ Step 6  格式自检：最终回答是否满足 §7？正常情况下 Step 1.5/S
 | 最近一期营收 / 净利润 / 归母 / ROE / 资产负债率 / 现金流（**非** 03/04 路由） | `fast-report-period.md` / `quick-report-period.md` |
 | 从某日到某日累计涨跌幅、多资产区间对比、同期相对收益（**非** 03/04 路由） | `period-return-compare.md` |
 | K 线图 / 蜡烛图 / 均线图 | `render-kline.md` |
-| 多条件筛选股池（PE<X、ROE>Y、市值范围、行业、概念）、TopN 排名 | `quant-standard.md` |
+| 已上线维度分 TopN / 推荐（动量与反转、趋势结构、相对强度、当日异动等） | `composition-select.md`（读 `presets/dimensions.yaml` → `selectByComposition`） |
+| 多条件筛选股池（PE<X、ROE>Y、市值范围、行业、概念）、临时公式 TopN 排名 | `quant-standard.md` |
 | 因子构建、回测、净值、IC、上传 CSV、下载 CSV | `quant-standard.md` + 对应 `recipes/*` |
 | 行业 / 板块聚合排名（行业平均涨幅、板块成交额） | `quant-standard.md` + `recipes/industry-aggregation.md` |
 | 历次事件后 N 日表现 / 阈值区间统计 | `event-study.md` / `regime-segmentation.md` |

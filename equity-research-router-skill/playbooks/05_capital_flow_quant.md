@@ -20,9 +20,10 @@
 3. （可选）分钟级量价（quant-buddy 若有则用，注意 `refreshSnapshotTime`）。
 
 ### 2B 选股（"选出今日符合 XX 策略的股票"、"找出 API 中转概念股"、"列出 10 只能拉板"）
-1. **必须先把"策略"翻译成 quant-buddy 的公式语言**（看 `quant-standard.md` + `recipes/*.md`）。
-2. 不能直接翻译的（FVG / SMC / 缠论等纯技术形态）：先用 quant-buddy 算子能近似的版本（如跳空缺口可用前一日最高 < 当日最低），并**明确告知用户这是近似口径**；完全无法表达 → §6。
-3. 全市场跑 `runMultiFormulaBatchStream` + TopN，得到候选；对每只候选取行情快照展开。
+1. **先判断能否用 quant-buddy 的已物化维度目录表达**：加载 `quant-buddy-skill/SKILL.md` 后进入 `composition-select.md`，读取 `presets/dimensions.yaml`。若用户语义命中目录中的 score/screen 指标（如 A股动量与反转、趋势结构、相对强度、当日交易异动），直接调 `selectByComposition`，禁止再现编公式；若接口未部署/不可见，按 `composition-select.md` 的失败规则退回公式路径或受控失败。
+2. 只有目录无法表达、用户指定临时公式口径、需要回测/净值/历史曲线/IC/下载，或需要多条件临时筛选（PE<X、ROE>Y、市值范围等）时，才进入 `quant-standard.md` + `recipes/*.md`。
+3. 不能直接翻译的（FVG / SMC / 缠论等纯技术形态）：先用 quant-buddy 算子能近似的版本（如跳空缺口可用前一日最高 < 当日最低），并**明确告知用户这是近似口径**；完全无法表达 → §6。
+4. 公式路径才全市场跑 `runMultiFormulaBatchStream` + TopN，得到候选；已物化维度路径直接使用 `selectByComposition` 返回的 TopN。
 
 ### 2C 通达信 / 公式工具类（"根据 XX 写通达信公式"）
 - 这类**不需要跑数据**；agent 直接产出通达信语法的公式文本。
