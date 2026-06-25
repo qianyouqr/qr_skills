@@ -1,0 +1,70 @@
+{
+  "run_id": "91cba4cb",
+  "checked_at": "2026-06-12T14:36:11.881736+08:00",
+  "endpoints_total": 6,
+  "passed": 5,
+  "failed": 1,
+  "uncertain": 0,
+  "results": [
+    {
+      "name": "fastQuery",
+      "url": "https://www.quantbuddy.cn/skill/fastQuery",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 3484,
+      "response_snippet": "{\"code\":0,\"data\":{\"success\":true,\"query_type\":\"snapshot\",\"hint\":\"行情字段为交易日收盘数据。字段值为标量；{v,d,fallback:true}表示已回退到最近有效日期。\",\"fields_meta\":{\"收盘价\":{\"unit\":\"元\",\"date_type\":\"trade_date\",\"index_title\":\"全市场每日收盘价（分钟刷新）\"}},\"dates\":{\"trade_date\":\"2026-06-12\"},\"results\":{\"贵州茅台\":{\"ticker\":\"600519.SH\",\"收盘价\":1291.22}}},\"task_id\":\"aeb78920-57d7-4733-9de5-d85b728a1ec5\",\"_quota\":{\"window\":{\"used\":13,\"limit\":20000,\"remaining\":19987,\"nextResetAt\":\"2026-06-12T08:11:49.000Z\",\"nextResetIn\":5739},\"daily\":{\"used\":13,\"limit",
+      "error_message": null
+    },
+    {
+      "name": "searchFunctions",
+      "url": "https://www.quantbuddy.cn/skill/searchFunctions",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 532,
+      "response_snippet": "{\"code\":0,\"data\":{\"code\":0,\"description\":\"query=\\\"回测\\\" tokens=[\\\"回测\\\"]；向量检索 1 次（回测:1），命中 1 条，去重后 1 条，返回前 1 条（top_k=1, detail_level=normal）\",\"data\":[{\"rank\":1,\"score\":83,\"title\":\"segDrawdown\",\"title_chinese\":\"分段回撤\",\"format\":\"分段回撤(数据)\",\"short_instruction\":\"分段回撤(D)->*D｜D=DataRef(必须双引号)｜计算分段回撤值｜正例:分段回撤(\\\"净值曲线\\\")\",\"example\":\"分段回撤(\\\"CPI同比\\\")\",\"instruction_excerpt\":\"\",\"tags\":\"\",\"aliases\":\"\"}],\"query\":\"回测\",\"tokens\":[\"回测\"],\"current_date\":20260612,\"respond_time\":\"2026-06-12 14:36:14\"},\"task_id\":\"5ec07f27-",
+      "error_message": null
+    },
+    {
+      "name": "searchSimilarCases",
+      "url": "https://www.quantbuddy.cn/skill/searchSimilarCases",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 6093,
+      "response_snippet": "{\"code\":0,\"data\":{\"code\":0,\"description\":\"query=\\\"收盘价排名\\\"；找到 3 个相似案例（匹配质量: low）\",\"match_quality\":\"low\",\"retry_suggestion\":{\"should_retry\":true,\"reason\":\"当前召回结果匹配度较低，建议换一个角度重新搜索以获得更精准的模板\",\"tips\":[\"尝试从不同角度描述需求：换用\\\"方法视角\\\"（用什么函数）或\\\"场景视角\\\"（解决什么问题）\"]},\"cases\":[{\"card_id\":\"691467fbacdb52784932c80e\",\"card_name\":\"优质低估值选股\",\"description\":\"综合评分与最终筛选，生成质价势综合评分_行业自适应_因子、万得全A_质量筛选结果、万得全A_最终得分、万得全A_候选股票池_前100名数据，先计算全市场综合评分因子便于复用，再针对万得全A板块应用质量硬闸过滤并筛选前100名股票\",\"action_type\":\"公式\",\"formulas\":[\"质价势综合评分_行业自适应_因子=\\\"全市场",
+      "error_message": null
+    },
+    {
+      "name": "confirmDataMulti",
+      "url": "https://www.quantbuddy.cn/skill/confirmDataMulti",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 7250,
+      "response_snippet": "{\"code\":0,\"data\":{\"code\":0,\"data\":[{\"intention\":\"收盘价\",\"filters_applied\":null,\"success\":true,\"index_info\":{\"_id\":\"61cbf81cc647a1c716b103db\",\"index_title\":\"全市场每日收盘价\",\"provider\":\"guanzhao\",\"dimension\":\"two\",\"last_date\":20260630,\"max_value\":11664000,\"min_value\":-37.175,\"begin_date\":20050104,\"is_bool\":false,\"description\":\"数据名称: 全市场每日收盘价;\\n二维,数值数据;\\n\\n具体信息：最后一列的日期：20260612\"}}],\"output\":\"\",\"description\":\"共查询 1 个数据意图 ✅ 成功 1 个:\\n\\n- 收盘价 → ✅ 【全市场每日收盘价】 (二维)\",\"status\":\"hit\",\"retryable\":false,\"mismatch_warn",
+      "error_message": null
+    },
+    {
+      "name": "stockProfile",
+      "url": "https://www.quantbuddy.cn/skill/stockProfile",
+      "method": "POST",
+      "status": "FAIL",
+      "http_code": 400,
+      "response_time_ms": 47,
+      "response_snippet": "{\"code\":-1,\"success\":false,\"error\":{\"layer\":1,\"code\":\"TASK_ID_REQUIRED\",\"message\":\"task_id 不能为空\",\"usage\":{\"params\":{\"asset\":\"string (必填) — 资产名称或代码\",\"task_id\":\"string (必填) — 任务ID\"},\"examples\":[]}},\"_quota\":{\"window\":{\"used\":47,\"limit\":20000,\"remaining\":19953,\"nextResetAt\":\"2026-06-12T08:11:49.000Z\",\"nextResetIn\":5721},\"daily\":{\"used\":47,\"limit\":50000,\"remaining\":49953,\"resetAt\":\"2026-06-12T16:00:00.000Z\"},\"cost\":2,\"type\":\"light\",\"tier\":\"ultra\"}}",
+      "error_message": "HTTP 400: Bad Request"
+    },
+    {
+      "name": "version/check",
+      "url": "https://www.quantbuddy.cn/skill/skill/version/check",
+      "method": "GET",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 63,
+      "response_snippet": "{\"code\":0,\"success\":true,\"client_version\":\"4.21.1\",\"latest_version\":\"4.21.2\",\"allowed_versions\":[\"4.20.16\",\"4.20.18\",\"4.20.21\",\"4.20.22\",\"4.21.0\",\"4.21.1\",\"4.21.2\"],\"update_required\":true,\"enforced\":false,\"hard_blocked\":false,\"package\":{\"required_version\":\"4.21.2\",\"zip_url\":\"https://github.com/pseudo-longinus/quant-buddy-skills/archive/refs/tags/v4.21.2.zip\",\"zip_sha512\":\"<421ae45b09716989752aa27a036d76ee85a0c343809450edc4be2a1654431b4a38e34280edbc089845509b838d713dd524124d1a164ffad7655997ab4439",
+      "error_message": null
+    }
+  ]
+}

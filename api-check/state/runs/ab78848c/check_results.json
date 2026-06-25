@@ -1,0 +1,79 @@
+{
+  "run_id": "ab78848c",
+  "checked_at": "2026-06-23T14:15:50.353561+08:00",
+  "endpoints_total": 7,
+  "passed": 6,
+  "failed": 1,
+  "results": [
+    {
+      "name": "fastQuery",
+      "url": "https://www.quantbuddy.cn/skill/fastQuery",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 3734,
+      "response_snippet": "{\"code\":0,\"data\":{\"success\":true,\"query_type\":\"snapshot\",\"hint\":\"行情字段为交易日收盘数据。字段值为标量；{v,d,fallback:true}表示已回退到最近有效日期。\",\"fields_meta\":{\"收盘价\":{\"unit\":\"元\",\"date_type\":\"trade_date\",\"index_title\":\"全市场每日收盘价（分钟刷新）\"}},\"dates\":{\"trade_date\":\"2026-06-23\"},\"results\":{\"贵州茅台\":{\"ticker\":\"600519.SH\",\"收盘价\":1220.76}}},\"task_id\":\"0a9f3a11-72f7-4a06-a712-6f32536ae5eb\",\"_quota\":{\"window\":{\"used\":155,\"limit\":20000,\"remaining\":19845,\"nextResetAt\":\"2026-06-23T07:01:05.000Z\",\"nextResetIn\":2716},\"daily\":{\"used\":540,\"lim",
+      "error_message": null
+    },
+    {
+      "name": "searchFunctions",
+      "url": "https://www.quantbuddy.cn/skill/searchFunctions",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 532,
+      "response_snippet": "{\"code\":0,\"data\":{\"code\":0,\"description\":\"query=\\\"回测\\\" tokens=[\\\"回测\\\"]；向量检索 1 次（回测:1），命中 1 条，去重后 1 条，返回前 1 条（top_k=1, detail_level=normal）\",\"data\":[{\"rank\":1,\"score\":83,\"title\":\"segDrawdown\",\"title_chinese\":\"分段回撤\",\"format\":\"分段回撤(数据)\",\"short_instruction\":\"分段回撤(D)->*D｜D=DataRef(必须双引号)｜计算分段回撤值｜正例:分段回撤(\\\"净值曲线\\\")\",\"example\":\"分段回撤(\\\"CPI同比\\\")\",\"instruction_excerpt\":\"\",\"tags\":\"\",\"aliases\":\"\"}],\"query\":\"回测\",\"tokens\":[\"回测\"],\"current_date\":20260623,\"respond_time\":\"2026-06-23 14:15:53\"},\"task_id\":\"30b64a9b-",
+      "error_message": null
+    },
+    {
+      "name": "searchSimilarCases",
+      "url": "https://www.quantbuddy.cn/skill/searchSimilarCases",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 3984,
+      "response_snippet": "{\"code\":0,\"data\":{\"code\":0,\"description\":\"query=\\\"收盘价排名\\\"；找到 3 个相似案例（匹配质量: low）\",\"match_quality\":\"low\",\"retry_suggestion\":{\"should_retry\":true,\"reason\":\"当前召回结果匹配度较低，建议换一个角度重新搜索以获得更精准的模板\",\"tips\":[\"尝试从不同角度描述需求：换用\\\"方法视角\\\"（用什么函数）或\\\"场景视角\\\"（解决什么问题）\"]},\"cases\":[{\"card_id\":\"691467fbacdb52784932c80e\",\"card_name\":\"优质低估值选股\",\"description\":\"综合评分与最终筛选，生成质价势综合评分_行业自适应_因子、万得全A_质量筛选结果、万得全A_最终得分、万得全A_候选股票池_前100名数据，先计算全市场综合评分因子便于复用，再针对万得全A板块应用质量硬闸过滤并筛选前100名股票\",\"action_type\":\"公式\",\"formulas\":[\"质价势综合评分_行业自适应_因子=\\\"全市场",
+      "error_message": null
+    },
+    {
+      "name": "confirmDataMulti",
+      "url": "https://www.quantbuddy.cn/skill/confirmDataMulti",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 5703,
+      "response_snippet": "{\"code\":0,\"data\":{\"code\":0,\"data\":[{\"intention\":\"收盘价\",\"filters_applied\":null,\"success\":true,\"index_info\":{\"_id\":\"61cbf81cc647a1c716b103db\",\"index_title\":\"全市场每日收盘价\",\"provider\":\"guanzhao\",\"dimension\":\"two\",\"last_date\":20260630,\"max_value\":10439999.999999998,\"min_value\":-37.175,\"begin_date\":20050104,\"is_bool\":false,\"description\":\"数据名称: 全市场每日收盘价;\\n二维,数值数据;\\n\\n具体信息：最后一列的日期：20260623\"}}],\"output\":\"\",\"description\":\"共查询 1 个数据意图 ✅ 成功 1 个:\\n\\n- 收盘价 → ✅ 【全市场每日收盘价】 (二维)\",\"status\":\"hit\",\"retryable\":false,\"mis",
+      "error_message": null
+    },
+    {
+      "name": "stockProfile",
+      "url": "https://www.quantbuddy.cn/skill/stockProfile",
+      "method": "POST",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 2766,
+      "response_snippet": "{\"code\":0,\"data\":{\"asset\":{\"code\":\"600519.SH\",\"name\":\"贵州茅台\",\"ticker\":\"SH600519\"},\"computed_at\":\"2026-06-23T03:49:07.900Z\",\"indicators_count\":255,\"dimensions\":{\"估值\":{\"indicators\":{\"pe_ttm\":{\"name\":\"PE_TTM\",\"latest_value\":18.76,\"unit\":\"倍\",\"variants\":{\"pctrank:1Y\":{\"value\":0.1},\"pctrank:3Y\":{\"value\":0.04},\"pctrank:5Y\":{\"value\":0.02}}},\"pb_ratio\":{\"name\":\"PB\",\"latest_value\":5.73,\"unit\":\"倍\",\"variants\":{\"pctrank:1Y\":{\"value\":0.05},\"pctrank:3Y\":{\"value\":0.03},\"pctrank:5Y\":{\"value\":0.02}}},\"ps_ttm\":{\"na",
+      "error_message": null
+    },
+    {
+      "name": "version/check",
+      "url": "https://www.quantbuddy.cn/skill/skill/version/check",
+      "method": "GET",
+      "status": "PASS",
+      "http_code": 200,
+      "response_time_ms": 63,
+      "response_snippet": "{\"code\":0,\"success\":true,\"client_version\":\"4.21.1\",\"latest_version\":\"4.22.2\",\"allowed_versions\":[\"4.20.16\",\"4.20.18\",\"4.20.21\",\"4.20.22\",\"4.21.0\",\"4.21.1\",\"4.21.2\",\"4.22.0\",\"4.22.1\",\"4.22.2\"],\"update_required\":true,\"enforced\":false,\"hard_blocked\":false,\"package\":{\"required_version\":\"4.22.2\",\"zip_url\":\"https://github.com/pseudo-longinus/quant-buddy-skills/archive/refs/tags/v4.22.2.zip\",\"zip_sha512\":\"03cad81006b5fc4a7ad7d9e1223e81cdc1b3808ce01465b6f1ff97bb39627bf0a89c5a2fd47dd69495920b9d3969f74220",
+      "error_message": null
+    },
+    {
+      "name": "runMultiFormulaBatchStream",
+      "url": "https://www.quantbuddy.cn/skill/runMultiFormulaBatchStream",
+      "method": "POST",
+      "status": "FAIL",
+      "http_code": 406,
+      "response_time_ms": 62,
+      "response_snippet": "{\"code\":-1,\"success\":false,\"error\":{\"message\":\"Accept must include text/event-stream\"}}",
+      "error_message": "HTTP 406: Not Acceptable"
+    }
+  ]
+}

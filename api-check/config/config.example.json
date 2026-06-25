@@ -1,0 +1,88 @@
+{
+  "base_url": "https://www.quantbuddy.cn/skill",
+  "_comment_api_key": "在 config.local.json 里填 api_key，不要提交到 git",
+  "skill_version": "4.21.1",
+  "skill_channel": "github",
+  "check": {
+    "_comment": "timeout_sec=单个端点超时秒数",
+    "timeout_sec": 30,
+    "endpoints": [
+      {
+        "name": "fastQuery",
+        "method": "POST",
+        "path": "/fastQuery",
+        "payload": {"assets": ["贵州茅台"], "query_type": "snapshot", "fields": ["收盘价"]},
+        "critical": true,
+        "desc": "核心数据查询通道"
+      },
+      {
+        "name": "searchFunctions",
+        "method": "POST",
+        "path": "/searchFunctions",
+        "payload": {"query": "回测", "top_k": 1},
+        "desc": "函数检索"
+      },
+      {
+        "name": "searchSimilarCases",
+        "method": "POST",
+        "path": "/searchSimilarCases",
+        "payload": {"query": "收盘价排名"},
+        "desc": "案例模板搜索"
+      },
+      {
+        "name": "confirmDataMulti",
+        "method": "POST",
+        "path": "/confirmDataMulti",
+        "payload": {"data_desc": "收盘价"},
+        "desc": "数据确认"
+      },
+      {
+        "name": "stockProfile",
+        "method": "POST",
+        "path": "/stockProfile",
+        "payload": {"asset": "贵州茅台", "task_id": "health-check-probe"},
+        "desc": "个股指标画像"
+      },
+      {
+        "name": "version/check",
+        "method": "GET",
+        "path": "/skill/version/check",
+        "payload": null,
+        "desc": "控制面版本检查"
+      },
+      {
+        "name": "runMultiFormulaBatchStream",
+        "method": "POST",
+        "path": "/runMultiFormulaBatchStream",
+        "payload": {
+          "formulas": [
+            "估值分析_比亚迪_PE=\"A股市盈率（PE, TTM）〔估值数据〕\"*取出(比亚迪)",
+            "估值分析_比亚迪_PB=\"A股市净率（PB）〔估值数据〕\"*取出(比亚迪)"
+          ]
+        },
+        "stream": true,
+        "timeout": 60,
+        "desc": "批量公式流式计算"
+      }
+    ]
+  },
+  "email": {
+    "_comment": "163 邮箱 SMTP；sender_email 和 smtp_password(授权码) 填 config.local.json",
+    "smtp_server": "smtp.163.com",
+    "smtp_port": 465,
+    "use_ssl": true,
+    "subject_prefix": "[API健康检查]",
+    "recipient_emails": []
+  },
+  "voice_call": {
+    "_comment": "阿里云语音告警；access_key_id/secret 和 tts_code 填 config.local.json",
+    "enabled": false,
+    "endpoint": "dyvmsapi.aliyuncs.com",
+    "called_number": "17854119861",
+    "called_show_number": "",
+    "tts_code": ""
+  },
+  "report": {
+    "announce_max_chars": 2000
+  }
+}
