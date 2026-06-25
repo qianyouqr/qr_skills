@@ -51,6 +51,14 @@
         "desc": "控制面版本检查"
       },
       {
+        "name": "indicatorCheck",
+        "method": "GET",
+        "path": "/indicatorCheck",
+        "payload": null,
+        "expect_code": 0,
+        "desc": "指标数据刷新监控（校验 code=0 表示全部指标已更新）"
+      },
+      {
         "name": "runMultiFormulaBatchStream",
         "method": "POST",
         "path": "/runMultiFormulaBatchStream",

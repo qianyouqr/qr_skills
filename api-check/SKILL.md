@@ -1,8 +1,8 @@
 ---
 name: api-check
 description: >
-  检查 quant-buddy 后端 7 个核心 API 接口的健康状态（fastQuery、searchFunctions、
-  searchSimilarCases、confirmDataMulti、stockProfile、version/check、runMultiFormulaBatchStream），
+  检查 quant-buddy 后端 8 个核心 API 接口的健康状态（fastQuery、searchFunctions、
+  searchSimilarCases、confirmDataMulti、stockProfile、version/check、indicatorCheck、runMultiFormulaBatchStream），
   生成结构化健康报告通过飞书智能体交付；若有接口异常，通过 163 邮箱发送告警邮件，
   并可选通过阿里云语音服务拨打电话告警。
   本 skill 挂载在 api-check 专用 agent 上，支持手动 @ 触发和可选 cron 定时触发；主 agent 请勿加载。
@@ -15,13 +15,13 @@ metadata:
 
 # api-check — API 健康巡检 Skill
 
-本 skill 定期对 quant-buddy 后端 7 个核心接口发送探测请求，
+本 skill 定期对 quant-buddy 后端 8 个核心接口发送探测请求，
 判断接口是否正常返回数据，生成健康报告 + 飞书卡片摘要。
 异常时自动通过 163 邮箱发送告警邮件，并可选拨打电话告警。
 
 > **本 skill 只应由 api-check 专用 agent 加载。用户在群里 @ 要求"立刻检查一下 / 跑一次巡检"时，直接在当前会话按下面 phase 执行，不要调用 cron tool。只有用户明确要求"触发/查看/修改 cron 定时任务"时，才使用 OpenClaw cron。**
 
-> **每次触发都必须完整重新执行 Phase 1+2+3，生成新的 run_id 和新的 report 文件。禁止复用本 session 任何先前的 run_id 或检查结果。**
+> **每次触发都必须完整重新执行 Phase 0+1+2+3，生成新的 run_id 和新的 report 文件。禁止复用本 session 任何先前的 run_id 或检查结果。**
 
 > ⚠️ **飞书渲染防重复（必须遵守）**：
 > 1. **执行期间调用工具时不要输出伴随文本**。即 assistant message 中只放 toolCall，不放 text。所有用户可见文本只写在最终回复中。
@@ -29,20 +29,22 @@ metadata:
 
 ---
 
-## 检查的接口（7 个）
+## 检查的接口（8 个）
 
-| # | 接口 | 方法 | 路径 | 测试载荷 | 说明 |
-|---|------|------|------|----------|------|
-| 1 | fastQuery | POST | /fastQuery | `{"assets":["贵州茅台"],"query_type":"snapshot","fields":["收盘价"]}` | 核心数据通道 |
-| 2 | searchFunctions | POST | /searchFunctions | `{"query":"回测","top_k":1}` | 函数检索 |
-| 3 | searchSimilarCases | POST | /searchSimilarCases | `{"query":"收盘价排名"}` | 案例模板 |
-| 4 | confirmDataMulti | POST | /confirmDataMulti | `{"data_desc":"收盘价"}` | 数据确认 |
-| 5 | stockProfile | POST | /stockProfile | `{"asset":"贵州茅台","task_id":"health-check-probe"}` | 个股画像 |
-| 6 | version/check | GET | /skill/version/check | 无body | 控制面 |
-| 7 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"formulas":["估值分析_比亚迪_PE=...","估值分析_比亚迪_PB=..."]}` | 批量公式流式计算 |
+| # | 接口 | 方法 | 路径 | 测试载荷 | 判定方式 | 说明 |
+|---|------|------|------|----------|----------|------|
+| 1 | fastQuery | POST | /fastQuery | `{"assets":["贵州茅台"],"query_type":"snapshot","fields":["收盘价"]}` | HTTP 2xx | 核心数据通道 |
+| 2 | searchFunctions | POST | /searchFunctions | `{"query":"回测","top_k":1}` | HTTP 2xx | 函数检索 |
+| 3 | searchSimilarCases | POST | /searchSimilarCases | `{"query":"收盘价排名"}` | HTTP 2xx | 案例模板 |
+| 4 | confirmDataMulti | POST | /confirmDataMulti | `{"data_desc":"收盘价"}` | HTTP 2xx | 数据确认 |
+| 5 | stockProfile | POST | /stockProfile | `{"asset":"贵州茅台","task_id":"health-check-probe"}` | HTTP 2xx | 个股画像 |
+| 6 | version/check | GET | /skill/version/check | 无body | HTTP 2xx | 控制面 |
+| 7 | indicatorCheck | GET | /indicatorCheck?is_trading_day=… | 无body | HTTP 2xx **且** `code=0` | 指标数据刷新监控 |
+| 8 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"formulas":["估值分析_比亚迪_PE=...","估值分析_比亚迪_PB=..."]}` | HTTP 2xx | 批量公式流式计算 |
 
 测试载荷均为只读、最小化请求，不产生副作用。
 对于流式端点 (stream=true)，仅读取首个数据块确认连接正常，不等待完整响应。
+indicatorCheck 与其他接口不同：它不仅检查接口是否存活，还通过响应体 `code` 字段判断数据库中的指标数据是否已刷新到位。
 
 ---
 
@@ -52,8 +54,11 @@ metadata:
 
 | 条件 | 判定 |
 |------|------|
-| HTTP 2xx | **PASS** |
+| HTTP 2xx（且无 `expect_code` 配置） | **PASS** |
+| HTTP 2xx 但配置了 `expect_code`，响应体 `code` 不匹配 | **FAIL**（报告服务端返回的 `message`） |
 | HTTP 非 2xx / 网络超时 / 连接异常 | **FAIL** |
+
+> 当前只有 `indicatorCheck` 配置了 `expect_code: 0`，其余接口仅检查 HTTP 状态码。
 
 ---
 
@@ -85,14 +90,29 @@ metadata:
 
 ---
 
+## Phase 0 — 判断今天是否为 A 股交易日
+
+在执行探测之前，Agent 必须先判断今天是否为 A 股交易日，结果用于 `indicatorCheck` 端点。
+
+**判断规则（按顺序）：**
+1. 周六、周日 → **非交易日**
+2. 属于中国法定节假日（春节、国庆、元旦、清明、劳动节、端午、中秋等）的调休/放假日 → **非交易日**
+3. 其余工作日 → **交易日**
+
+Agent 根据当前日期自行判断，将结果记为 `IS_TRADING_DAY`（`true` 或 `false`），传入 Phase 1 命令。
+
+---
+
 ## Phase 1 — check：探测所有端点
 
 ```bash
-cd {SKILL_ROOT} && python scripts/run_check.py --phase check
+cd {SKILL_ROOT} && python scripts/run_check.py --phase check --is-trading-day <IS_TRADING_DAY>
 ```
 
-- 逐个请求 7 个端点，记录状态/耗时/响应片段。
-- 成功后 stdout 输出 `run_id=<ID>  endpoints=7  passed=N  failed=M`，记住 run_id。
+> `<IS_TRADING_DAY>` 替换为 Phase 0 得到的 `true` 或 `false`。该参数会作为 `is_trading_day` query param 传递给 `indicatorCheck` 端点。
+
+- 逐个请求 8 个端点，记录状态/耗时/响应片段。
+- 成功后 stdout 输出 `run_id=<ID>  endpoints=8  passed=N  failed=M`，记住 run_id。
 - 产物：`{SKILL_ROOT}/state/runs/<runId>/check_results.json`
 
 > 遇到 exit code 2（api_key 缺失），停止后续步骤，直接输出告警。

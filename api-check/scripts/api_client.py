@@ -137,6 +137,20 @@ class HealthCheckClient:
                 result["response_snippet"] = body[:SNIPPET_MAX]
                 result["status"] = "PASS"
 
+                expect_code = ep.get("expect_code")
+                if expect_code is not None:
+                    try:
+                        body_json = json.loads(body)
+                        actual_code = body_json.get("code")
+                        if actual_code != expect_code:
+                            result["status"] = "FAIL"
+                            result["error_message"] = body_json.get(
+                                "message", f"code={actual_code}, expected {expect_code}"
+                            )
+                    except (json.JSONDecodeError, KeyError):
+                        result["status"] = "FAIL"
+                        result["error_message"] = "无法解析响应体 JSON"
+
         except urllib.error.HTTPError as exc:
             elapsed_ms = round((time.monotonic() - t0) * 1000)
             result["http_code"] = exc.code
