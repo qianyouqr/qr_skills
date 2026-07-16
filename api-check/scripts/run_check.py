@@ -85,12 +85,6 @@ def phase_check(args) -> None:
         print("[ERROR] config 中未配置 check.endpoints", file=sys.stderr)
         sys.exit(1)
 
-    if args.is_trading_day is not None:
-        for ep in endpoints:
-            if ep["name"] == "indicatorCheck":
-                sep = "&" if "?" in ep["path"] else "?"
-                ep["path"] += f"{sep}is_trading_day={args.is_trading_day}"
-
     client = HealthCheckClient(
         base_url=cfg.get("base_url", ""),
         api_key=cfg.get("api_key", ""),
@@ -263,8 +257,6 @@ def _main() -> None:
     parser.add_argument("--run-id", default=None, help="指定 run_id（report/alert phase）")
     parser.add_argument("--dry-run", action="store_true", help="不写文件、不发邮件")
     parser.add_argument("--no-state", action="store_true", help="不更新 last_run.json")
-    parser.add_argument("--is-trading-day", choices=["true", "false"], default=None,
-                        help="传递给 indicatorCheck 端点的交易日参数")
     args = parser.parse_args()
 
     try:
