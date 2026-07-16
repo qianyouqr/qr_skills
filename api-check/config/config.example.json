@@ -33,7 +33,7 @@
         "name": "confirmDataMulti",
         "method": "POST",
         "path": "/confirmDataMulti",
-        "payload": {"data_desc": "收盘价"},
+        "payload": {"data_desc": "全市场每日收盘价"},
         "desc": "数据确认"
       },
       {
