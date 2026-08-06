@@ -90,7 +90,7 @@ def phase_check(args) -> None:
         api_key=cfg.get("api_key", ""),
         skill_version=cfg.get("skill_version", "4.21.1"),
         skill_channel=cfg.get("skill_channel", ""),
-        timeout=cfg.get("check", {}).get("timeout_sec", 30),
+        timeout=cfg.get("check", {}).get("timeout_sec", 60),
     )
 
     results = client.check_all(endpoints)

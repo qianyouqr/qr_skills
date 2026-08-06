@@ -39,10 +39,11 @@ metadata:
 | 4 | confirmDataMulti | POST | /confirmDataMulti | `{"data_desc":"收盘价"}` | HTTP 2xx | 数据确认 |
 | 5 | stockProfile | POST | /stockProfile | `{"asset":"贵州茅台","task_id":"health-check-probe"}` | HTTP 2xx | 个股画像 |
 | 6 | version/check | GET | /skill/version/check | 无body | HTTP 2xx | 控制面 |
-| 7 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"formulas":["估值分析_比亚迪_PE=...","估值分析_比亚迪_PB=..."]}` | HTTP 2xx | 批量公式流式计算 |
+| 7 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"task_id":"api-health-check-run-multi-formula-stream","formulas":["均线条件 = ..."]}` | HTTP 2xx，且响应 `status=success`、`description` 非空 | 批量公式流式计算 |
 
 测试载荷均为只读、最小化请求，不产生副作用。
-对于流式端点 (stream=true)，仅读取首个数据块确认连接正常，不等待完整响应。
+对于流式端点 (`stream=true`)，读取首个数据块；配置 `unique_task_id=true` 时为每次探测生成唯一 `task_id`，避免复用缓存结果；配置 `follow_stream_url=true` 时继续请求返回的 `stream_url`，等待公式结果。若端点配置了 `expect_fields` / `require_non_empty_fields`，还会解析普通 JSON、NDJSON 或 SSE `data:` 内容并校验响应字段；嵌套字段使用点路径，例如 `index_info.description`。
+单个端点默认超时为 60 秒，由 `config/config.example.json` 的 `check.timeout_sec` 控制；端点可通过自身的 `timeout` 字段单独覆盖。
 
 ---
 
@@ -53,6 +54,7 @@ metadata:
 | 条件 | 判定 |
 |------|------|
 | HTTP 2xx | **PASS** |
+| HTTP 2xx，但 `expect_fields` 不匹配或 `require_non_empty_fields` 为空 | **FAIL** |
 | HTTP 非 2xx / 网络超时 / 连接异常 | **FAIL** |
 
 ---

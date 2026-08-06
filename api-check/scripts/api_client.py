@@ -3,8 +3,9 @@ api_client.py -- quant-buddy API 健康检查 HTTP 客户端
 
 对配置中的每个端点发送探测请求，记录状态/耗时/响应片段。
 判定规则：
-  HTTP 2xx            -> PASS
-  HTTP 非2xx / 网络异常 -> FAIL
+  HTTP 2xx                         -> 默认 PASS
+  配置了响应字段校验且不满足          -> FAIL
+  HTTP 非2xx / 网络异常              -> FAIL
 
 提供 --probe CLI 入口做最简单的版本检查验活。
 """
@@ -19,6 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,8 @@ SKILL_ROOT = Path(__file__).resolve().parent.parent
 _NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 SNIPPET_MAX = 500
+STREAM_READ_MAX = 64 * 1024
+STREAM_RESULT_MAX = 256 * 1024
 
 
 class ApiKeyMissingError(RuntimeError):
@@ -37,6 +41,79 @@ class ApiKeyMissingError(RuntimeError):
 
 class CheckError(RuntimeError):
     """检查过程中的其他错误"""
+
+
+def _json_objects(body: str) -> list[dict[str, Any]]:
+    """从普通 JSON、NDJSON 或 SSE data 行中提取所有 JSON 对象。"""
+    payloads = [body.strip()]
+    for line in body.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("data:"):
+            payloads.append(stripped[5:].strip())
+
+    parsed: list[Any] = []
+    seen: set[str] = set()
+    for payload in payloads:
+        if not payload or payload == "[DONE]" or payload in seen:
+            continue
+        seen.add(payload)
+        try:
+            parsed.append(json.loads(payload))
+        except json.JSONDecodeError:
+            continue
+
+    objects: list[dict[str, Any]] = []
+
+    def walk(value: Any) -> None:
+        if isinstance(value, dict):
+            objects.append(value)
+            for child in value.values():
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+
+    for value in parsed:
+        walk(value)
+    return objects
+
+
+def _validate_response(body: str, ep: dict[str, Any]) -> str | None:
+    """返回响应语义校验错误；未配置校验或校验通过时返回 None。"""
+    expect_fields = ep.get("expect_fields", {})
+    non_empty_fields = ep.get("require_non_empty_fields", [])
+    if not expect_fields and not non_empty_fields:
+        return None
+
+    objects = _json_objects(body)
+    if not objects:
+        return "无法解析响应体 JSON/SSE"
+
+    matching = [
+        obj
+        for obj in objects
+        if all(obj.get(key) == expected for key, expected in expect_fields.items())
+    ]
+    if not matching:
+        expected_text = ", ".join(
+            f"{key}={value!r}" for key, value in expect_fields.items()
+        )
+        return f"响应不满足预期字段: {expected_text}"
+
+    def get_path(obj: dict[str, Any], path: str) -> Any:
+        value: Any = obj
+        for part in path.split("."):
+            if not isinstance(value, dict):
+                return None
+            value = value.get(part)
+        return value
+
+    for obj in matching:
+        values = [get_path(obj, path) for path in non_empty_fields]
+        if all(isinstance(value, str) and bool(value.strip()) for value in values):
+            return None
+
+    return f"响应字段为空: {', '.join(non_empty_fields)}"
 
 
 def load_config() -> dict:
@@ -69,7 +146,7 @@ class HealthCheckClient:
         api_key: str,
         skill_version: str = "4.21.1",
         skill_channel: str = "",
-        timeout: int = 30,
+        timeout: int = 60,
     ) -> None:
         if not api_key:
             raise ApiKeyMissingError(
@@ -98,6 +175,11 @@ class HealthCheckClient:
         path = ep["path"]
         payload = ep.get("payload")
 
+        if ep.get("unique_task_id", False) and isinstance(payload, dict):
+            payload = dict(payload)
+            task_id_prefix = payload.get("task_id", "api-health-check")
+            payload["task_id"] = f"{task_id_prefix}-{uuid.uuid4().hex[:12]}"
+
         url = f"{self._base}{path}"
         headers = self._build_headers(method)
         if ep.get("stream", False):
@@ -122,20 +204,54 @@ class HealthCheckClient:
 
         timeout = ep.get("timeout", self._timeout)
         is_stream = ep.get("stream", False)
+        followed_stream = False
 
         t0 = time.monotonic()
         try:
             with _NO_PROXY_OPENER.open(req, timeout=timeout) as resp:
-                elapsed_ms = round((time.monotonic() - t0) * 1000)
                 if is_stream:
-                    chunk = resp.read(4096)
+                    chunk = resp.read(STREAM_READ_MAX)
                     body = chunk.decode("utf-8", errors="replace")
+
+                    if ep.get("follow_stream_url", False):
+                        ready = next(
+                            (obj for obj in _json_objects(body) if obj.get("stream_url")),
+                            None,
+                        )
+                        if ready is None:
+                            raise CheckError("流式响应缺少 stream_url")
+                        stream_path = ready["stream_url"]
+                        if stream_path.startswith(("http://", "https://")):
+                            stream_url = stream_path
+                        else:
+                            stream_url = f"{self._base}/{stream_path.lstrip('/')}"
+                        stream_headers = self._build_headers("GET")
+                        stream_headers["Accept"] = "text/event-stream"
+                        stream_req = urllib.request.Request(
+                            stream_url,
+                            headers=stream_headers,
+                            method="GET",
+                        )
+                        with _NO_PROXY_OPENER.open(
+                            stream_req, timeout=timeout
+                        ) as stream_resp:
+                            chunk = stream_resp.read(STREAM_RESULT_MAX)
+                            body = chunk.decode("utf-8", errors="replace")
+                        followed_stream = True
                 else:
                     body = resp.read().decode("utf-8")
+                elapsed_ms = round((time.monotonic() - t0) * 1000)
                 result["http_code"] = resp.status
                 result["response_time_ms"] = elapsed_ms
-                result["response_snippet"] = body[:SNIPPET_MAX]
+                result["response_snippet"] = (
+                    body[-SNIPPET_MAX:] if followed_stream else body[:SNIPPET_MAX]
+                )
                 result["status"] = "PASS"
+
+                validation_error = _validate_response(body, ep)
+                if validation_error:
+                    result["status"] = "FAIL"
+                    result["error_message"] = validation_error
 
                 expect_code = ep.get("expect_code")
                 if expect_code is not None:

@@ -5,7 +5,7 @@
   "skill_channel": "github",
   "check": {
     "_comment": "timeout_sec=单个端点超时秒数",
-    "timeout_sec": 30,
+    "timeout_sec": 60,
     "endpoints": [
       {
         "name": "fastQuery",
@@ -55,13 +55,17 @@
         "method": "POST",
         "path": "/runMultiFormulaBatchStream",
         "payload": {
+          "task_id": "api-health-check-run-multi-formula-stream",
           "formulas": [
-            "估值分析_比亚迪_PE=\"A股市盈率（PE, TTM）〔估值数据〕\"*取出(比亚迪)",
-            "估值分析_比亚迪_PB=\"A股市净率（PB）〔估值数据〕\"*取出(比亚迪)"
+            "均线条件 = \"全市场每日收盘价\" > 平均(\"全市场每日收盘价\", 5)"
           ]
         },
         "stream": true,
+        "unique_task_id": true,
+        "follow_stream_url": true,
         "timeout": 60,
+        "expect_fields": {"status": "success"},
+        "require_non_empty_fields": ["index_info.description"],
         "desc": "批量公式流式计算"
       }
     ]
