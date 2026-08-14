@@ -1,8 +1,8 @@
 ---
 name: api-check
 description: >
-  检查 quant-buddy 后端 7 个核心 API 接口的健康状态（fastQuery、searchFunctions、
-  searchSimilarCases、confirmDataMulti、stockProfile、version/check、runMultiFormulaBatchStream），
+  检查 quant-buddy 后端 8 个核心 API 探测项的健康状态（fastQuery 快照、fastQuery 行情/估值/财务探测、
+  searchFunctions、searchSimilarCases、confirmDataMulti、stockProfile、version/check、runMultiFormulaBatchStream），
   生成结构化健康报告通过飞书智能体交付；若有接口异常，通过 163 邮箱发送告警邮件，
   并可选通过阿里云语音服务拨打电话告警。
   本 skill 挂载在 api-check 专用 agent 上，支持手动 @ 触发和可选 cron 定时触发；主 agent 请勿加载。
@@ -15,7 +15,7 @@ metadata:
 
 # api-check — API 健康巡检 Skill
 
-本 skill 定期对 quant-buddy 后端 7 个核心接口发送探测请求，
+本 skill 定期对 quant-buddy 后端 8 个核心 API 探测项发送请求，
 判断接口是否正常返回数据，生成健康报告 + 飞书卡片摘要。
 异常时自动通过 163 邮箱发送告警邮件，并可选拨打电话告警。
 
@@ -29,17 +29,18 @@ metadata:
 
 ---
 
-## 检查的接口（7 个）
+## 检查的接口（8 个探测项）
 
 | # | 接口 | 方法 | 路径 | 测试载荷 | 判定方式 | 说明 |
 |---|------|------|------|----------|----------|------|
 | 1 | fastQuery | POST | /fastQuery | `{"assets":["贵州茅台"],"query_type":"snapshot","fields":["收盘价"]}` | HTTP 2xx | 核心数据通道 |
-| 2 | searchFunctions | POST | /searchFunctions | `{"query":"回测","top_k":1}` | HTTP 2xx | 函数检索 |
-| 3 | searchSimilarCases | POST | /searchSimilarCases | `{"query":"收盘价排名"}` | HTTP 2xx | 案例模板 |
-| 4 | confirmDataMulti | POST | /confirmDataMulti | `{"data_desc":"收盘价"}` | HTTP 2xx | 数据确认 |
-| 5 | stockProfile | POST | /stockProfile | `{"asset":"贵州茅台","task_id":"health-check-probe"}` | HTTP 2xx | 个股画像 |
-| 6 | version/check | GET | /skill/version/check | 无body | HTTP 2xx | 控制面 |
-| 7 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"task_id":"api-health-check-run-multi-formula-stream","formulas":["均线条件 = ..."]}` | HTTP 2xx，且响应 `status=success`、`description` 非空 | 批量公式流式计算 |
+| 2 | fastQuery行情、估值、财务探测 | POST | /fastQuery | `{"assets":["GC.CMX"],"query_type":"window","fields":["收盘价"],"start_date":"当年-01-01","end_date":"当天","user_query":"test"}` | HTTP 2xx，且响应中 `data.success=true` | 动态使用中国时区当天；失败时报告记录完整响应 |
+| 3 | searchFunctions | POST | /searchFunctions | `{"query":"回测","top_k":1}` | HTTP 2xx | 函数检索 |
+| 4 | searchSimilarCases | POST | /searchSimilarCases | `{"query":"收盘价排名"}` | HTTP 2xx | 案例模板 |
+| 5 | confirmDataMulti | POST | /confirmDataMulti | `{"data_desc":"收盘价"}` | HTTP 2xx | 数据确认 |
+| 6 | stockProfile | POST | /stockProfile | `{"asset":"贵州茅台","task_id":"health-check-probe"}` | HTTP 2xx | 个股画像 |
+| 7 | version/check | GET | /skill/version/check | 无body | HTTP 2xx | 控制面 |
+| 8 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"task_id":"api-health-check-run-multi-formula-stream","formulas":["均线条件 = ..."]}` | HTTP 2xx，且响应 `status=success`、`description` 非空 | 批量公式流式计算 |
 
 测试载荷均为只读、最小化请求，不产生副作用。
 对于流式端点 (`stream=true`)，读取首个数据块；配置 `unique_task_id=true` 时为每次探测生成唯一 `task_id`，避免复用缓存结果；配置 `follow_stream_url=true` 时继续请求返回的 `stream_url`，等待公式结果。若端点配置了 `expect_fields` / `require_non_empty_fields`，还会解析普通 JSON、NDJSON 或 SSE `data:` 内容并校验响应字段；嵌套字段使用点路径，例如 `index_info.description`。
@@ -54,7 +55,8 @@ metadata:
 | 条件 | 判定 |
 |------|------|
 | HTTP 2xx | **PASS** |
-| HTTP 2xx，但 `expect_fields` 不匹配或 `require_non_empty_fields` 为空 | **FAIL** |
+| HTTP 2xx，但 fastQuery 行情/估值/财务探测响应中 `data.success=false` 或缺少 `data.success=true` | **FAIL**，健康报告写入完整响应 |
+| HTTP 2xx，但其他 `expect_fields` 不匹配或 `require_non_empty_fields` 为空 | **FAIL** |
 | HTTP 非 2xx / 网络超时 / 连接异常 | **FAIL** |
 
 ---
@@ -93,8 +95,8 @@ metadata:
 cd {SKILL_ROOT} && python scripts/run_check.py --phase check
 ```
 
-- 逐个请求 7 个端点，记录状态/耗时/响应片段。
-- 成功后 stdout 输出 `run_id=<ID>  endpoints=7  passed=N  failed=M`，记住 run_id。
+- 逐个执行 8 个探测项，记录状态/耗时/响应片段。
+- 成功后 stdout 输出 `run_id=<ID>  endpoints=8  passed=N  failed=M`，记住 run_id。
 - 产物：`{SKILL_ROOT}/state/runs/<runId>/check_results.json`
 
 > 遇到 exit code 2（api_key 缺失），停止后续步骤，直接输出告警。

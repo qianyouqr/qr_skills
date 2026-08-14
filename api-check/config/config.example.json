@@ -16,6 +16,23 @@
         "desc": "核心数据查询通道"
       },
       {
+        "name": "fastQuery行情、估值、财务探测",
+        "method": "POST",
+        "path": "/fastQuery",
+        "payload": {
+          "assets": ["GC.CMX"],
+          "query_type": "window",
+          "fields": ["收盘价"],
+          "start_date": "由检查程序动态设置为当年1月1日",
+          "end_date": "由检查程序动态设置为当天",
+          "user_query": "test"
+        },
+        "current_year_date_range": true,
+        "expect_fields": {"data.success": true},
+        "capture_full_response": true,
+        "desc": "行情、估值、财务探测；data.success=false 时失败并记录完整响应"
+      },
+      {
         "name": "searchFunctions",
         "method": "POST",
         "path": "/searchFunctions",
@@ -80,7 +97,7 @@
   },
   "voice_call": {
     "_comment": "阿里云语音告警；access_key_id/secret 和 tts_code 填 config.local.json",
-    "enabled": false,
+    "enabled": true,
     "endpoint": "dyvmsapi.aliyuncs.com",
     "called_number": "17854119861",
     "called_show_number": "",

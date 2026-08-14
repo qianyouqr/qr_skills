@@ -160,9 +160,22 @@ def phase_report(args) -> None:
             md_lines.append(f"- HTTP状态: {r.get('http_code', 'N/A')}")
             md_lines.append(f"- 耗时: {r.get('response_time_ms', 'N/A')} ms")
             md_lines.append(f"- 错误: {r.get('error_message', 'N/A')}")
-            snippet = r.get("response_snippet", "")
-            if snippet:
-                md_lines.append(f"- 响应片段: ```{snippet[:300]}```")
+            response_body = r.get("response_body")
+            if response_body:
+                try:
+                    response_text = json.dumps(
+                        json.loads(response_body), ensure_ascii=False, indent=2
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    response_text = str(response_body)
+                md_lines.append("- 完整响应:")
+                md_lines.append("```json")
+                md_lines.append(response_text)
+                md_lines.append("```")
+            else:
+                snippet = r.get("response_snippet", "")
+                if snippet:
+                    md_lines.append(f"- 响应片段: ```{snippet[:300]}```")
             md_lines.append("")
 
     md_content = "\n".join(md_lines)

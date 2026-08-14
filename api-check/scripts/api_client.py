@@ -21,6 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ _NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SNIPPET_MAX = 500
 STREAM_READ_MAX = 64 * 1024
 STREAM_RESULT_MAX = 256 * 1024
+TZ_CN = timezone(timedelta(hours=8))
 
 
 class ApiKeyMissingError(RuntimeError):
@@ -89,17 +91,6 @@ def _validate_response(body: str, ep: dict[str, Any]) -> str | None:
     if not objects:
         return "无法解析响应体 JSON/SSE"
 
-    matching = [
-        obj
-        for obj in objects
-        if all(obj.get(key) == expected for key, expected in expect_fields.items())
-    ]
-    if not matching:
-        expected_text = ", ".join(
-            f"{key}={value!r}" for key, value in expect_fields.items()
-        )
-        return f"响应不满足预期字段: {expected_text}"
-
     def get_path(obj: dict[str, Any], path: str) -> Any:
         value: Any = obj
         for part in path.split("."):
@@ -108,12 +99,36 @@ def _validate_response(body: str, ep: dict[str, Any]) -> str | None:
             value = value.get(part)
         return value
 
+    matching = [
+        obj
+        for obj in objects
+        if all(get_path(obj, key) == expected for key, expected in expect_fields.items())
+    ]
+    if not matching:
+        expected_text = ", ".join(
+            f"{key}={value!r}" for key, value in expect_fields.items()
+        )
+        return f"响应不满足预期字段: {expected_text}"
+
     for obj in matching:
         values = [get_path(obj, path) for path in non_empty_fields]
         if all(isinstance(value, str) and bool(value.strip()) for value in values):
             return None
 
     return f"响应字段为空: {', '.join(non_empty_fields)}"
+
+
+def _prepare_payload(payload: Any, ep: dict[str, Any]) -> Any:
+    """为需要动态日期的探测生成当年起止日期，不修改原始配置。"""
+    if not isinstance(payload, dict):
+        return payload
+
+    prepared = dict(payload)
+    if ep.get("current_year_date_range", False):
+        today = datetime.now(TZ_CN).date()
+        prepared["start_date"] = f"{today.year}-01-01"
+        prepared["end_date"] = today.isoformat()
+    return prepared
 
 
 def load_config() -> dict:
@@ -173,7 +188,7 @@ class HealthCheckClient:
         name = ep["name"]
         method = ep.get("method", "POST").upper()
         path = ep["path"]
-        payload = ep.get("payload")
+        payload = _prepare_payload(ep.get("payload"), ep)
 
         if ep.get("unique_task_id", False) and isinstance(payload, dict):
             payload = dict(payload)
@@ -267,13 +282,19 @@ class HealthCheckClient:
                         result["status"] = "FAIL"
                         result["error_message"] = "无法解析响应体 JSON"
 
+                if result["status"] == "FAIL" and ep.get("capture_full_response", False):
+                    result["response_body"] = body
+
         except urllib.error.HTTPError as exc:
             elapsed_ms = round((time.monotonic() - t0) * 1000)
             result["http_code"] = exc.code
             result["response_time_ms"] = elapsed_ms
             result["error_message"] = f"HTTP {exc.code}: {exc.reason}"
             try:
-                result["response_snippet"] = exc.read().decode("utf-8")[:SNIPPET_MAX]
+                error_body = exc.read().decode("utf-8", errors="replace")
+                result["response_snippet"] = error_body[:SNIPPET_MAX]
+                if ep.get("capture_full_response", False):
+                    result["response_body"] = error_body
             except Exception:
                 pass
 
