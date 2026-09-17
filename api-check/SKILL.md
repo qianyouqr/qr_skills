@@ -33,8 +33,8 @@ metadata:
 
 | # | 接口 | 方法 | 路径 | 测试载荷 | 判定方式 | 说明 |
 |---|------|------|------|----------|----------|------|
-| 1 | fastQuery | POST | /fastQuery | `{"assets":["贵州茅台"],"query_type":"snapshot","fields":["收盘价"]}` | HTTP 2xx | 核心数据通道 |
-| 2 | fastQuery行情、估值、财务探测 | POST | /fastQuery | `{"assets":["GC.CMX"],"query_type":"window","fields":["收盘价"],"start_date":"当年-01-01","end_date":"当天","user_query":"test"}` | HTTP 2xx，且响应中 `data.success=true` | 动态使用中国时区当天；失败时报告记录完整响应 |
+| 1 | fastQuery | POST | /fastQuery | `{"assets":["贵州茅台"],"query_type":"snapshot","fields":["收盘价","涨跌幅","PE_TTM","PB","换手率"]}` | HTTP 2xx，且 `data.success=true`、`data.results.贵州茅台.*` 5 个字段均非空、无错误项 | 核心数据通道；同时覆盖行情（收盘价/涨跌幅）与估值（PE_TTM/PB/换手率）字段 |
+| 2 | fastQuery行情、估值、财务探测 | POST | /fastQuery | `{"assets":["GC.CMX"],"query_type":"window","fields":["收盘价"],"start_date":"当年-01-01","end_date":"当天","user_query":"test"}` | HTTP 2xx，且响应中 `data.success=true`、无错误项 | 动态使用中国时区当天；失败时报告记录完整响应 |
 | 3 | searchFunctions | POST | /searchFunctions | `{"query":"回测","top_k":1}` | HTTP 2xx | 函数检索 |
 | 4 | searchSimilarCases | POST | /searchSimilarCases | `{"query":"收盘价排名"}` | HTTP 2xx | 案例模板 |
 | 5 | confirmDataMulti | POST | /confirmDataMulti | `{"data_desc":"收盘价"}` | HTTP 2xx | 数据确认 |
@@ -43,7 +43,8 @@ metadata:
 | 8 | runMultiFormulaBatchStream | POST | /runMultiFormulaBatchStream | `{"task_id":"api-health-check-run-multi-formula-stream","formulas":["均线条件 = ..."]}` | HTTP 2xx，且响应 `status=success`、`description` 非空 | 批量公式流式计算 |
 
 测试载荷均为只读、最小化请求，不产生副作用。
-对于流式端点 (`stream=true`)，读取首个数据块；配置 `unique_task_id=true` 时为每次探测生成唯一 `task_id`，避免复用缓存结果；配置 `follow_stream_url=true` 时继续请求返回的 `stream_url`，等待公式结果。若端点配置了 `expect_fields` / `require_non_empty_fields`，还会解析普通 JSON、NDJSON 或 SSE `data:` 内容并校验响应字段；嵌套字段使用点路径，例如 `index_info.description`。
+对于流式端点 (`stream=true`)，读取首个数据块；配置 `unique_task_id=true` 时为每次探测生成唯一 `task_id`，避免复用缓存结果；配置 `follow_stream_url=true` 时继续请求返回的 `stream_url`，等待公式结果。若端点配置了 `expect_fields` / `require_non_empty_fields`，还会解析普通 JSON、NDJSON 或 SSE `data:` 内容并校验响应字段；嵌套字段使用点路径，例如 `index_info.description`、`data.results.贵州茅台.PE_TTM`。字段值支持字符串、数值和 `{v,d}` 结构（取 `v`），点路径不存在、值为 `null` 或字符串为空白都算空值。
+配置 `fail_on_response_errors=true` 时，只要响应里出现非空的 `_errors` / `field_errors` / `asset_errors`（这两个键只在出错时才出现，可能位于 `data` 下，也可能嵌在 `data.results.<资产>` 内）即判 **FAIL**，错误信息摘录前 3 条的 `code: message`。这类 partial failure 的响应仍是 `HTTP 200 + code:0 + data.success=true`，只靠状态码和 `success` 都发现不了。
 单个端点默认超时为 60 秒，由 `config/config.example.json` 的 `check.timeout_sec` 控制；端点可通过自身的 `timeout` 字段单独覆盖。
 
 ---
@@ -56,7 +57,8 @@ metadata:
 |------|------|
 | HTTP 2xx | **PASS** |
 | HTTP 2xx，但 fastQuery 行情/估值/财务探测响应中 `data.success=false` 或缺少 `data.success=true` | **FAIL**，健康报告写入完整响应 |
-| HTTP 2xx，但其他 `expect_fields` 不匹配或 `require_non_empty_fields` 为空 | **FAIL** |
+| HTTP 2xx，但响应中出现非空 `_errors` / `field_errors` / `asset_errors`（含 `data.results.<资产>._errors`） | **FAIL**，记录前 3 条 `code: message`（如 `DATA_UNAVAILABLE`、`FIELD_MARKET_MISMATCH`） |
+| HTTP 2xx，但其他 `expect_fields` 不匹配或 `require_non_empty_fields` 为空/缺失 | **FAIL**，错误信息列出为空或缺失的点路径 |
 | HTTP 非 2xx / 网络超时 / 连接异常 | **FAIL** |
 
 ---

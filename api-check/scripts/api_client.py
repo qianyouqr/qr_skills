@@ -36,6 +36,9 @@ STREAM_READ_MAX = 64 * 1024
 STREAM_RESULT_MAX = 256 * 1024
 TZ_CN = timezone(timedelta(hours=8))
 
+# fastQuery 等端点用这些键承载"部分失败"信息（HTTP 200 + success=true 时也会出现）
+ERROR_COLLECTION_KEYS = ("_errors", "field_errors", "asset_errors")
+
 
 class ApiKeyMissingError(RuntimeError):
     """api_key 未配置"""
@@ -84,12 +87,22 @@ def _validate_response(body: str, ep: dict[str, Any]) -> str | None:
     """返回响应语义校验错误；未配置校验或校验通过时返回 None。"""
     expect_fields = ep.get("expect_fields", {})
     non_empty_fields = ep.get("require_non_empty_fields", [])
-    if not expect_fields and not non_empty_fields:
+    fail_on_errors = ep.get("fail_on_response_errors", False)
+    if not expect_fields and not non_empty_fields and not fail_on_errors:
         return None
 
     objects = _json_objects(body)
     if not objects:
         return "无法解析响应体 JSON/SSE"
+
+    if fail_on_errors:
+        for obj in objects:
+            for key in ERROR_COLLECTION_KEYS:
+                value = obj.get(key)
+                if isinstance(value, list) and value:
+                    return f"响应包含错误项 {key}: {_summarize_errors(value)}"
+                if isinstance(value, dict) and value:
+                    return f"响应包含错误项 {key}: {_summarize_errors([value])}"
 
     def get_path(obj: dict[str, Any], path: str) -> Any:
         value: Any = obj
@@ -111,11 +124,45 @@ def _validate_response(body: str, ep: dict[str, Any]) -> str | None:
         return f"响应不满足预期字段: {expected_text}"
 
     for obj in matching:
-        values = [get_path(obj, path) for path in non_empty_fields]
-        if all(isinstance(value, str) and bool(value.strip()) for value in values):
+        missing = [
+            path for path in non_empty_fields if not _has_value(get_path(obj, path))
+        ]
+        if not missing:
             return None
 
-    return f"响应字段为空: {', '.join(non_empty_fields)}"
+    return f"响应字段为空或缺失: {', '.join(missing)}"
+
+
+def _has_value(value: Any) -> bool:
+    """判断字段值是否有内容：字符串非空白、数值/布尔非 None、{v,d} 看 v、容器非空。"""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        if "v" in value:
+            return value.get("v") is not None
+        return any(_has_value(child) for child in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return any(_has_value(child) for child in value)
+    return True
+
+
+def _summarize_errors(items: list[Any], limit: int = 3) -> str:
+    """把 _errors / field_errors / asset_errors 条目压缩成一行摘要。"""
+    parts: list[str] = []
+    for item in items[:limit]:
+        if not isinstance(item, dict):
+            parts.append(str(item))
+            continue
+        code = item.get("code") or item.get("intent") or "?"
+        message = item.get("message") or item.get("intent") or ""
+        asset = item.get("asset")
+        text = f"{code}: {message}"
+        parts.append(f"[{asset}] {text}" if asset else text)
+    if len(items) > limit:
+        parts.append(f"...共 {len(items)} 项")
+    return "; ".join(parts)[:SNIPPET_MAX]
 
 
 def _prepare_payload(payload: Any, ep: dict[str, Any]) -> Any:

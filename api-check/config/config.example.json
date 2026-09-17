@@ -4,16 +4,25 @@
   "skill_version": "4.21.1",
   "skill_channel": "github",
   "check": {
-    "_comment": "timeout_sec=单个端点超时秒数",
+    "_comment": "timeout_sec=单个端点超时秒数；端点可用 expect_fields(精确匹配) / require_non_empty_fields(非空校验，点路径) / fail_on_response_errors(响应里出现非空 _errors|field_errors|asset_errors 即判失败) 断言响应内容",
     "timeout_sec": 60,
     "endpoints": [
       {
         "name": "fastQuery",
         "method": "POST",
         "path": "/fastQuery",
-        "payload": {"assets": ["贵州茅台"], "query_type": "snapshot", "fields": ["收盘价"]},
+        "payload": {"assets": ["贵州茅台"], "query_type": "snapshot", "fields": ["收盘价", "涨跌幅", "PE_TTM", "PB", "换手率"]},
+        "expect_fields": {"data.success": true},
+        "fail_on_response_errors": true,
+        "require_non_empty_fields": [
+          "data.results.贵州茅台.收盘价",
+          "data.results.贵州茅台.涨跌幅",
+          "data.results.贵州茅台.PE_TTM",
+          "data.results.贵州茅台.PB",
+          "data.results.贵州茅台.换手率"
+        ],
         "critical": true,
-        "desc": "核心数据查询通道"
+        "desc": "核心数据查询通道；校验行情（收盘价/涨跌幅）与估值（PE_TTM/PB/换手率）5 个字段是否全部非空"
       },
       {
         "name": "fastQuery行情、估值、财务探测",
@@ -29,6 +38,7 @@
         },
         "current_year_date_range": true,
         "expect_fields": {"data.success": true},
+        "fail_on_response_errors": true,
         "capture_full_response": true,
         "desc": "行情、估值、财务探测；data.success=false 时失败并记录完整响应"
       },
