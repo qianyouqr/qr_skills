@@ -14,6 +14,7 @@
         "payload": {"assets": ["贵州茅台"], "query_type": "snapshot", "fields": ["收盘价", "涨跌幅", "PE_TTM", "PB", "换手率"]},
         "expect_fields": {"data.success": true},
         "fail_on_response_errors": true,
+        "capture_response_body": true,
         "require_non_empty_fields": [
           "data.results.贵州茅台.收盘价",
           "data.results.贵州茅台.涨跌幅",
@@ -93,6 +94,7 @@
         "timeout": 60,
         "expect_fields": {"status": "success"},
         "require_non_empty_fields": ["index_info.description"],
+        "capture_response_body": true,
         "desc": "批量公式流式计算"
       }
     ]
@@ -114,6 +116,9 @@
     "tts_code": ""
   },
   "report": {
-    "announce_max_chars": 2000
+    "_comment": "detail_endpoints=报告中额外展示请求体/响应摘录的端点名；detail_max_chars=响应摘录截断长度",
+    "announce_max_chars": 2000,
+    "detail_endpoints": ["fastQuery", "runMultiFormulaBatchStream"],
+    "detail_max_chars": 2600
   }
 }

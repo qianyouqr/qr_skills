@@ -34,6 +34,7 @@ _NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 SNIPPET_MAX = 500
 STREAM_READ_MAX = 64 * 1024
 STREAM_RESULT_MAX = 256 * 1024
+CAPTURE_MAX = 20_000
 TZ_CN = timezone(timedelta(hours=8))
 
 # fastQuery 等端点用这些键承载"部分失败"信息（HTTP 200 + success=true 时也会出现）
@@ -251,6 +252,7 @@ class HealthCheckClient:
             "name": name,
             "url": url,
             "method": method,
+            "request_payload": payload,
             "status": "FAIL",
             "http_code": None,
             "response_time_ms": None,
@@ -308,6 +310,8 @@ class HealthCheckClient:
                 result["response_snippet"] = (
                     body[-SNIPPET_MAX:] if followed_stream else body[:SNIPPET_MAX]
                 )
+                if ep.get("capture_response_body", False):
+                    result["response_body"] = body[:CAPTURE_MAX]
                 result["status"] = "PASS"
 
                 validation_error = _validate_response(body, ep)
@@ -342,6 +346,8 @@ class HealthCheckClient:
                 result["response_snippet"] = error_body[:SNIPPET_MAX]
                 if ep.get("capture_full_response", False):
                     result["response_body"] = error_body
+                elif ep.get("capture_response_body", False):
+                    result["response_body"] = error_body[:CAPTURE_MAX]
             except Exception:
                 pass
 

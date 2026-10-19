@@ -23,7 +23,12 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from api_client import load_config, ApiKeyMissingError, HealthCheckClient
+from api_client import (
+    load_config,
+    ApiKeyMissingError,
+    HealthCheckClient,
+    _json_objects,
+)
 from email_notifier import send_alert_email
 from voice_notifier import send_voice_alert
 
@@ -124,9 +129,89 @@ def phase_check(args) -> None:
 # Phase 2 -- report
 # ═══════════════════════════════════════════════════════════════════
 
+def _format_number(value: float) -> str:
+    """去掉浮点尾数噪声（6.2589999999999995 -> 6.259）。"""
+    if value and abs(value) < 1e-6:
+        return f"{value:g}"
+    text = f"{value:.6f}".rstrip("0").rstrip(".")
+    return text or "0"
+
+
+def _format_field_value(value) -> str:
+    """把 fastQuery 字段值格式化为 值@日期。"""
+    if isinstance(value, dict):
+        if "v" in value:
+            raw = _format_number(value["v"]) if isinstance(value["v"], float) else str(value.get("v"))
+            date = value.get("d")
+            return f"{raw}@{date}" if date else raw
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, float):
+        return _format_number(value)
+    return str(value)
+
+
+def _response_highlights(result: dict, max_chars: int = 160) -> list[str]:
+    """从响应体提取排查要点：fastQuery 字段值、流式公式任务的结果描述。"""
+    body = result.get("response_body") or result.get("response_snippet") or ""
+    highlights: list[str] = []
+    seen: set[str] = set()
+
+    def add(line: str) -> None:
+        if line and line not in seen:
+            seen.add(line)
+            highlights.append(line)
+
+    for obj in _json_objects(body):
+        data = obj.get("data")
+        results = data.get("results") if isinstance(data, dict) else None
+        if isinstance(results, dict):
+            meta = data.get("fields_meta")
+            for asset, row in results.items():
+                if not isinstance(row, dict):
+                    continue
+                pairs = []
+                for field, value in row.items():
+                    if field in ("ticker", "_intent", "_errors"):
+                        continue
+                    unit = ""
+                    if isinstance(meta, dict) and isinstance(meta.get(field), dict):
+                        unit = meta[field].get("unit") or ""
+                    pairs.append(f"{field}={_format_field_value(value)}{unit}")
+                ticker = row.get("ticker") or "-"
+                add(f"{asset}({ticker}): " + "，".join(pairs))
+        info = obj.get("index_info")
+        if isinstance(info, dict):
+            label = obj.get("leftName") or obj.get("expression_id") or "-"
+            desc = " ".join(str(info.get("description", "")).split())
+            add(f"{label}: {desc[:max_chars]}")
+        if "success" in obj and "failed" in obj:
+            add(
+                f"任务汇总: total={obj.get('total')} success={obj.get('success')} "
+                f"failed={obj.get('failed')} skipped={obj.get('skipped')}"
+            )
+    return highlights
+
+
+def _excerpt(result: dict, max_chars: int) -> tuple[str, str]:
+    """取响应体（优先完整响应）美化并截断，返回 (文本, 代码块语言)。"""
+    body = result.get("response_body") or result.get("response_snippet") or ""
+    if not body:
+        return "", ""
+    try:
+        text = json.dumps(json.loads(body), ensure_ascii=False, indent=2)
+        lang = "json"
+    except (json.JSONDecodeError, TypeError):
+        text = str(body)
+        lang = ""
+    if len(text) > max_chars:
+        text = text[:max_chars] + "\n…（已截断）"
+    return text, lang
+
+
 def phase_report(args) -> None:
     run_id = _resolve_run_id(args)
     data = _load_results(run_id)
+    cfg = load_config()
 
     results = data["results"]
     total = data["endpoints_total"]
@@ -176,6 +261,43 @@ def phase_report(args) -> None:
                 snippet = r.get("response_snippet", "")
                 if snippet:
                     md_lines.append(f"- 响应片段: ```{snippet[:300]}```")
+            md_lines.append("")
+
+    report_cfg = cfg.get("report", {})
+    detail_names = report_cfg.get("detail_endpoints", [])
+    detail_max = report_cfg.get("detail_max_chars", 1500)
+    detail_results = [r for name in detail_names for r in results if r["name"] == name]
+
+    if detail_results:
+        md_lines.append("")
+        md_lines.append("## 请求详情")
+        for r in detail_results:
+            md_lines.append(f"### {r['name']}")
+            md_lines.append(f"- 请求: `{r.get('method', 'POST')} {r.get('url', '')}`")
+            payload = r.get("request_payload")
+            if payload is not None:
+                md_lines.append("- 请求体:")
+                md_lines.append("```json")
+                md_lines.append(json.dumps(payload, ensure_ascii=False, indent=2))
+                md_lines.append("```")
+            time_str = (
+                str(r["response_time_ms"]) if r["response_time_ms"] is not None else "-"
+            )
+            http_str = str(r["http_code"]) if r["http_code"] is not None else "-"
+            md_lines.append(f"- 响应: HTTP {http_str} | {time_str} ms | {r['status']}")
+            if r.get("error_message"):
+                md_lines.append(f"- 错误: {r['error_message']}")
+            highlights = _response_highlights(r)
+            if highlights:
+                md_lines.append("- 关键结果:")
+                for line in highlights:
+                    md_lines.append(f"  - {line}")
+            excerpt, lang = _excerpt(r, detail_max)
+            if excerpt:
+                md_lines.append("- 响应摘录:")
+                md_lines.append(f"```{lang}")
+                md_lines.append(excerpt)
+                md_lines.append("```")
             md_lines.append("")
 
     md_content = "\n".join(md_lines)

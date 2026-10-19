@@ -45,6 +45,7 @@ metadata:
 测试载荷均为只读、最小化请求，不产生副作用。
 对于流式端点 (`stream=true`)，读取首个数据块；配置 `unique_task_id=true` 时为每次探测生成唯一 `task_id`，避免复用缓存结果；配置 `follow_stream_url=true` 时继续请求返回的 `stream_url`，等待公式结果。若端点配置了 `expect_fields` / `require_non_empty_fields`，还会解析普通 JSON、NDJSON 或 SSE `data:` 内容并校验响应字段；嵌套字段使用点路径，例如 `index_info.description`、`data.results.贵州茅台.PE_TTM`。字段值支持字符串、数值和 `{v,d}` 结构（取 `v`），点路径不存在、值为 `null` 或字符串为空白都算空值。
 配置 `fail_on_response_errors=true` 时，只要响应里出现非空的 `_errors` / `field_errors` / `asset_errors`（这两个键只在出错时才出现，可能位于 `data` 下，也可能嵌在 `data.results.<资产>` 内）即判 **FAIL**，错误信息摘录前 3 条的 `code: message`。这类 partial failure 的响应仍是 `HTTP 200 + code:0 + data.success=true`，只靠状态码和 `success` 都发现不了。
+配置 `capture_response_body=true` 时，无论成败都把完整响应（上限 20000 字符）写入 `check_results.json` 的 `response_body`，供报告展示请求细节；不配置时只保留 500 字符片段。
 单个端点默认超时为 60 秒，由 `config/config.example.json` 的 `check.timeout_sec` 控制；端点可通过自身的 `timeout` 字段单独覆盖。
 
 ---
@@ -120,7 +121,9 @@ cd {SKILL_ROOT} && python scripts/run_check.py --phase report
 ### 1. 生成 markdown 健康报告
 
 写入 `{SKILL_ROOT}/output/reports/YYYY-MM-DD_HHMM_health.md`：
-概览统计 + 各端点状态表格 + 失败/待判断详情。
+概览统计 + 各端点状态表格 + 失败详情 + 请求详情。
+
+**请求详情**（`## 请求详情`）：对 `report.detail_endpoints` 列出的端点（默认 `fastQuery`、`runMultiFormulaBatchStream`）额外展示 实际请求体、响应状态/耗时、关键结果（fastQuery 字段值含单位与数据日期；流式任务的 expression 描述与 `total/success/failed` 汇总）以及响应摘录。响应摘录取自 `capture_response_body=true` 抓取的完整响应，按 `report.detail_max_chars` 截断（默认 2600 字符）。
 
 ### 2. 输出摘要到 stdout
 
